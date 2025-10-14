@@ -213,7 +213,7 @@ export const signOut = async () => {
 export async function getOrders(vehicleType: string) {
   const orderItems = await db.order.findMany({
     where: {
-      status: "Pending",
+      status: "Shipped",
       vehicleType,
       riderId: null,
     },
