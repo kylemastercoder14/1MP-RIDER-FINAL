@@ -6,29 +6,102 @@ import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import CustomizedInput from "@/components/customized-input";
+import { signIn } from "@/actions";
+import { Toast, ToastType } from "@/components/toast-notification";
 
 const SignInForm = () => {
   const router = useRouter();
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: ToastType;
+  } | null>(null);
 
   const togglePasswordVisibility = () => {
     setPasswordVisible((prevState) => !prevState);
   };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      setLoading(true);
+
+      const response = await signIn(email, password);
+
+      if (response.error) {
+        setToast({ message: response.error, type: "error" });
+        return;
+      }
+
+      const rider = response.rider;
+
+      if (!rider) {
+        setToast({
+          message: "Login failed. Please try again.",
+          type: "error",
+        });
+        return;
+      }
+
+      // ✅ Redirect based on backend status
+      if (rider.adminApproval === "Pending") {
+        setToast({
+          message: "Please complete your onboarding details.",
+          type: "warning",
+        });
+        router.push("/onboarding");
+      } else if (rider.adminApproval === "Under Review") {
+        setToast({
+          message: "Please wait for admin's approval.",
+          type: "warning",
+        });
+        router.push("/waiting-for-approval");
+      } else if (rider.adminApproval === "Rejected") {
+        setToast({
+          message: "Your application was rejected. Please contact support.",
+          type: "error",
+        });
+      } else {
+        setToast({ message: "Login successful!", type: "success" });
+        router.push("/dashboard");
+      }
+    } catch (error) {
+      console.error(error);
+      setToast({ message: "Something went wrong", type: "error" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="px-5 mt-3 flex flex-col">
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          duration={3000}
+          onClose={() => setToast(null)}
+        />
+      )}
       <div className="space-y-4 mb-2">
         <CustomizedInput
           type="email"
           label="Email address"
-          // value={email}
-          onChange={(e) => console.log(e.target.value)}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          disabled={loading}
         />
         <div className="relative">
           <CustomizedInput
             type={passwordVisible ? "text" : "password"}
             label="Password"
-            // value={email}
-            onChange={(e) => console.log(e.target.value)}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={loading}
           />
           <button
             type="button"
@@ -49,7 +122,13 @@ const SignInForm = () => {
       >
         Forgot password?
       </Link>
-      <Button type="submit" size="lg" disabled className="mt-5 mb-3">
+      <Button
+        onClick={handleSubmit}
+        type="submit"
+        size="lg"
+        disabled={loading || !email || !password}
+        className="mt-5 mb-3"
+      >
         Log in
       </Button>
       <Button

@@ -14,11 +14,23 @@ import { DatePicker } from "@/components/date-picker";
 import CustomizedInput from "@/components/customized-input";
 import CustomizedSelect from "@/components/customized-select";
 import { cn } from "@/lib/utils";
-import { Camera, Check, CircleCheck, FolderUp, Upload } from "lucide-react";
+import {
+  ArrowLeft,
+  Camera,
+  Check,
+  CircleCheck,
+  FolderUp,
+  LogOut,
+  Upload,
+} from "lucide-react";
 import Image from "next/image";
 import { uploadFile } from "@/lib/upload-s3";
 import { Modal } from "@/components/modal";
 import { Toast, ToastType } from "@/components/toast-notification";
+import AlertModal from "@/components/ui/alert-modal";
+import Link from "next/link";
+import { onboardRider, signOut } from "@/actions";
+import { Rider } from "@prisma/client";
 
 const vehicleTypeOptions = [
   {
@@ -28,7 +40,7 @@ const vehicleTypeOptions = [
     image: "/motor.png",
   },
   {
-    value: "bicycle",
+    value: "Bicycle",
     label: "Bicycle",
     description:
       "Use a secure compartment or bag to protect items during delivery.",
@@ -101,7 +113,7 @@ const DOCUMENTS = [
   },
 ];
 
-const OnboardingForm = () => {
+const OnboardingForm = ({ rider }: { rider: Rider }) => {
   const router = useRouter();
 
   // === STATES ===
@@ -127,6 +139,7 @@ const OnboardingForm = () => {
   // modal
   const [activeDocId, setActiveDocId] = useState<string | null>(null);
   const [uploading, setUploading] = useState<boolean>(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -189,28 +202,32 @@ const OnboardingForm = () => {
     }
   };
 
+  // === HANDLE LOGOUT/CANCEL ===
+  const handleCancel = async () => {
+    await signOut();
+    setToast({ message: "Logout successfully", type: "success" });
+    router.push("/sign-up");
+  };
+
   // === SUBMIT TO BACKEND ===
   const handleSubmit = async () => {
     try {
       setLoading(true);
 
-      //   TODO: Implement the backend later and remove the data in the local storage
-      //   const res = await fetch("/api/onboarding", {
-      //     method: "POST",
-      //     headers: { "Content-Type": "application/json" },
-      //     body: JSON.stringify(formData),
-      //   });
+      const response = await onboardRider(formData, rider.id);
 
-      //   if (!res.ok) {
-      //     const txt = await res.text();
-      //     setToast({
-      //       message: txt || "Failed to submit onboarding",
-      //       type: "error",
-      //     });
-      //   }
+      if (response.error) {
+        setToast({ message: response.error, type: "error" });
+        return;
+      }
 
-      //   localStorage.removeItem("onboardingRiderData");
-      setToast({ message: "Registered successfully", type: "success" });
+      // Clear temporary onboarding data
+      localStorage.removeItem("onboardingRiderData");
+
+      setToast({
+        message: response.success || "Onboarded successfully.",
+        type: "success",
+      });
       router.push("/dashboard");
     } catch (err: any) {
       setToast({ message: err.message || "Submission error", type: "error" });
@@ -692,113 +709,136 @@ const OnboardingForm = () => {
   const activeDoc = DOCUMENTS.find((d) => d.id === activeDocId) || null;
 
   return (
-    <div className="relative h-full flex flex-col">
-      <input
-        ref={cameraInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={onCameraInputChange}
+    <>
+      <AlertModal
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        onConfirm={handleCancel}
+        title="Logout confirmation"
+        description="Are you sure you want to logout? This action cannot be undone."
       />
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={onFileInputChange}
-      />
-      <div className="flex-1 overflow-y-auto px-3 pt-2 scrollbar-hide">
-        <span className="tracking-tight text-sm font-medium text-muted-foreground">
-          Step {step} of {TOTAL_STEPS}
-        </span>
-        <div className="space-y-6 mt-1 mb-2">{renderStepContent()}</div>
-        {toast && (
-          <Toast
-            message={toast.message}
-            type={toast.type}
-            duration={3000}
-            onClose={() => setToast(null)}
-          />
-        )}
+      <div className="flex border-b px-3 py-2 w-full items-center">
+        <Link href="/sign-up">
+          <ArrowLeft className="size-6" />
+        </Link>
+        <span className="text-center mx-auto font-semibold">Onboarding</span>
+        <Button
+          variant="ghost"
+          className="!p-0"
+          type="button"
+          onClick={() => setIsOpen(true)}
+        >
+          <LogOut className="size-6 text-primary" />
+        </Button>
       </div>
-
-      <div className="fixed bottom-0 left-0 right-0 px-4 py-3 bg-white border-t flex gap-3">
-        {step > 1 && (
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={handleBack}
-            disabled={step === 1 || loading}
-          >
-            Back
-          </Button>
-        )}
-        <div className="flex-1">
-          <Button
-            type="button"
-            size="lg"
-            className="w-full"
-            disabled={!isStepValid() || loading}
-            onClick={handleNext}
-          >
-            {loading
-              ? "Please wait..."
-              : step < TOTAL_STEPS
-              ? "Next"
-              : "Submit"}
-          </Button>
+      <div className="relative h-full flex flex-col">
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={onCameraInputChange}
+        />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={onFileInputChange}
+        />
+        <div className="flex-1 overflow-y-auto px-3 pt-3 scrollbar-hide">
+          <span className="tracking-tight text-sm font-medium text-muted-foreground">
+            Step {step} of {TOTAL_STEPS}
+          </span>
+          <div className="space-y-6 mt-1 mb-2">{renderStepContent()}</div>
+          {toast && (
+            <Toast
+              message={toast.message}
+              type={toast.type}
+              duration={3000}
+              onClose={() => setToast(null)}
+            />
+          )}
         </div>
-      </div>
 
-      <Modal
-        isOpen={!!activeDoc}
-        onClose={() => setActiveDocId(null)}
-        title={activeDoc?.title}
-        className="!max-w-full"
-      >
-        {activeDoc && (
-          <div>
-            <p className="text-center font-medium text-sm text-zinc-500 mb-5">
-              {activeDoc.description}
-            </p>
-            <div className="w-full h-48 bg-slate-100 rounded mb-4 flex items-center justify-center">
-              {/* if you have guidelineImage, render it */}
-              <img
-                src={activeDoc.sampleImage}
-                alt="Guideline"
-                className="max-h-full max-w-full object-contain"
-              />
-            </div>
-            <div className="mt-5 space-y-1">
-              {activeDoc.criteria.map((item) => (
-                <div key={item} className="flex items-center gap-2">
-                  <Check className="size-4 text-green-600" />
-                  <p className="text-sm">{item}</p>
-                </div>
-              ))}
-            </div>
-            <div className="mt-16 grid gap-3">
-              <Button
-                type="button"
-                onClick={triggerCamera}
-                disabled={uploading}
-              >
-                <Camera className="size-4" /> Take Photo
-              </Button>
-              <Button
-                type="button"
-                onClick={triggerFilePicker}
-                disabled={uploading}
-                variant="outline"
-              >
-                <FolderUp className="size-4" /> Upload File
-              </Button>
-            </div>
+        <div className="fixed bottom-0 left-0 right-0 px-4 py-3 bg-white border-t flex gap-3">
+          {step > 1 && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleBack}
+              disabled={step === 1 || loading}
+            >
+              Back
+            </Button>
+          )}
+          <div className="flex-1">
+            <Button
+              type="button"
+              size="lg"
+              className="w-full"
+              disabled={!isStepValid() || loading}
+              onClick={handleNext}
+            >
+              {loading
+                ? "Please wait..."
+                : step < TOTAL_STEPS
+                  ? "Next"
+                  : "Submit"}
+            </Button>
           </div>
-        )}
-      </Modal>
-    </div>
+        </div>
+
+        <Modal
+          isOpen={!!activeDoc}
+          onClose={() => setActiveDocId(null)}
+          title={activeDoc?.title}
+          className="!max-w-full"
+        >
+          {activeDoc && (
+            <div>
+              <p className="text-center font-medium text-sm text-zinc-500 mb-5">
+                {activeDoc.description}
+              </p>
+              <div className="w-full h-48 bg-slate-100 rounded mb-4 flex items-center justify-center">
+                {/* if you have guidelineImage, render it */}
+                <img
+                  src={activeDoc.sampleImage}
+                  alt="Guideline"
+                  className="max-h-full max-w-full object-contain"
+                />
+              </div>
+              <div className="mt-5 space-y-1">
+                {activeDoc.criteria.map((item) => (
+                  <div key={item} className="flex items-center gap-2">
+                    <Check className="size-4 text-green-600" />
+                    <p className="text-sm">{item}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-16 grid gap-3">
+                <Button
+                  type="button"
+                  onClick={triggerCamera}
+                  disabled={uploading}
+                >
+                  <Camera className="size-4" /> Take Photo
+                </Button>
+                <Button
+                  type="button"
+                  onClick={triggerFilePicker}
+                  disabled={uploading}
+                  variant="outline"
+                >
+                  <FolderUp className="size-4" /> Upload File
+                </Button>
+              </div>
+            </div>
+          )}
+        </Modal>
+      </div>
+    </>
   );
 };
 

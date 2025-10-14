@@ -1,7 +1,6 @@
-
 import Image from "next/image";
 import React from "react";
-import SignInForm from '@/components/forms/sign-in';
+import SignInForm from "@/components/forms/sign-in";
 
 const Page = () => {
   return (

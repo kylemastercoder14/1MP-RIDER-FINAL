@@ -1,4 +1,6 @@
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   ChevronRight,
@@ -8,12 +10,43 @@ import {
   Turntable,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import Image from 'next/image';
-import Link from 'next/link';
+import Image from "next/image";
+import { signOut } from "@/actions";
+import { useRouter } from "next/navigation";
+import { Toast, ToastType } from "@/components/toast-notification";
+import AlertModal from "@/components/ui/alert-modal";
+import { TabBar } from '@/components/layouts/tab-bar';
 
 const Page = () => {
+  const router = useRouter();
+  const [isOpen, setIsOpen] = useState(false);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: ToastType;
+  } | null>(null);
+
+  const handleLogout = async () => {
+    await signOut();
+    setToast({ message: "Logout successfully", type: "success" });
+    router.push("/sign-in");
+  };
   return (
     <div>
+      <AlertModal
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        onConfirm={handleLogout}
+        title="Logout confirmation"
+        description="Are you sure you want to logout?"
+      />
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          duration={3000}
+          onClose={() => setToast(null)}
+        />
+      )}
       <div className="flex items-center mt-10 justify-center flex-col">
         <Avatar className="rounded-full size-14">
           <AvatarImage
@@ -80,18 +113,27 @@ const Page = () => {
         </div>
       </div>
       <div className="mt-5 flex items-center justify-center">
-        <Link href="/sign-in" className="flex items-center font-semibold gap-3">
+        <div
+          onClick={() => setIsOpen(true)}
+          className="flex items-center font-semibold gap-3"
+        >
           <LogOut className="text-primary size-4" />
           <p className="text-sm text-primary">Logout</p>
-        </Link>
+        </div>
       </div>
-	  <div className="mt-10 flex items-center justify-center">
+      <div className="mt-10 flex items-center justify-center">
         <div className="flex items-center font-semibold gap-3">
-          <Image width={25} height={25} src="/logo.png" alt='1 Market Philippines Logo' />
+          <Image
+            width={25}
+            height={25}
+            src="/logo.png"
+            alt="1 Market Philippines Logo"
+          />
           <p className="text-sm">1 Market Philippines Driver</p>
         </div>
       </div>
-	  <p className='mt-3 text-sm text-zinc-400 text-center'>Version: v1.0.0</p>
+      <p className="mt-3 text-sm text-zinc-400 text-center">Version: v1.0.0</p>
+      <TabBar />
     </div>
   );
 };

@@ -42,7 +42,7 @@ const FloatingDockMobile = ({
     <div className={cn("relative block md:hidden", className)}>
       <motion.div
         layoutId="nav"
-        className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center justify-center gap-7 rounded-2xl bg-gray-50 p-3 shadow-lg dark:bg-neutral-900"
+        className="fixed bottom-0 w-full left-1/2 z-50 flex -translate-x-1/2 items-center justify-center gap-8 border-t bg-gray-50 p-3 shadow-lg dark:bg-neutral-900"
       >
         {items.map((item, idx) => (
           <motion.div
