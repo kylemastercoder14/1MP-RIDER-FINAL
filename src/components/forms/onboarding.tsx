@@ -40,6 +40,13 @@ const vehicleTypeOptions = [
     image: "/motor.png",
   },
   {
+    value: "Tricycle",
+    label: "Tricycle",
+    description:
+      "Ideal for carrying larger packages and multiple items securely within short distances.",
+    image: "/trike.png",
+  },
+  {
     value: "Bicycle",
     label: "Bicycle",
     description:
